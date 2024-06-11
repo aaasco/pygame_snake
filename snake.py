@@ -18,17 +18,18 @@ BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 
-def init_game():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption('Snake Game')
+# Initialisation du jeu
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption('Snake Game')
+font = pygame.font.Font(None, 36)
 
+def init_game():
     snake = [(GRID_SIZE // 2, GRID_SIZE // 2)]
     direction = random.choice([UP, DOWN, LEFT, RIGHT])
     food = generate_food(snake)
     score = 0
     running = True
-
     return screen, snake, direction, food, score, running
 
 def generate_food(snake):
@@ -53,13 +54,13 @@ def update(snake, direction, food, score, running):
 
     if new_head == food:
         food = generate_food(snake)
-        score += 1
+        score += 100
     else:
         snake.pop()
 
     return snake, food, score, running
 
-def draw(screen, snake, food):
+def draw(screen, snake, food, score, message):
     screen.fill(BLACK)
 
     # Dessiner le serpent
@@ -74,8 +75,17 @@ def draw(screen, snake, food):
     fx, fy = food
     pygame.draw.rect(screen, RED, pygame.Rect(fx * CELL_SIZE, fy * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
-    pygame.display.flip()
+    # Afficher le score
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (10, 10))
 
+    # Afficher le message
+    if message:
+        message_text = font.render(message, True, WHITE)
+        text_rect = message_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        screen.blit(message_text, text_rect)
+
+    pygame.display.flip()
 
 def get_best_move(snake, food):
     head_x, head_y = snake[0]
@@ -115,17 +125,27 @@ def ai_move(snake, direction, food, score, running):
 def run():
     screen, snake, direction, food, score, running = init_game()
     clock = pygame.time.Clock()
+    message = ""
 
-    while running:
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and not running:
+                screen, snake, direction, food, score, running = init_game()
+                message = ""
+
+        if running:
+            snake, direction, food, score, running = ai_move(snake, direction, food, score, running)
+            if score >= 2500:
+                message = "You Win!"
                 running = False
+            elif not running:
+                message = "Game Over"
 
-        snake, direction, food, score, running = ai_move(snake, direction, food, score, running)
-        draw(screen, snake, food)
+        draw(screen, snake, food, score, message)
         clock.tick(10)  # 10 FPS
-
-    pygame.quit()
 
 if __name__ == "__main__":
     run()
