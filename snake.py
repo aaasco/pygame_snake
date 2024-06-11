@@ -21,7 +21,7 @@ RED = (255, 0, 0)
 # Initialisation du jeu
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption('Snake Game')
+pygame.display.set_caption('Pygame Snake')
 font = pygame.font.Font(None, 36)
 
 def init_game():
@@ -84,6 +84,11 @@ def draw(screen, snake, food, score, message):
         message_text = font.render(message, True, WHITE)
         text_rect = message_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
         screen.blit(message_text, text_rect)
+
+    # Ajouter le message "Press SPACE to restart" à côté de "You Win!" et "Game Over"
+        restart_text = font.render("Press SPACE to restart", True, WHITE)
+        restart_rect = restart_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 40))
+        screen.blit(restart_text, restart_rect)
 
     pygame.display.flip()
 
