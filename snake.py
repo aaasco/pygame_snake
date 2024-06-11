@@ -1,6 +1,5 @@
 import pygame
 import random
-import numpy as np
 
 # Configuration du jeu
 GRID_SIZE = 20
@@ -19,100 +18,114 @@ BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 
-class SnakeGame:
-    def __init__(self):
-        pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption('Snake Game with AI')
+def init_game():
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption('Snake Game')
 
-        self.snake = [(GRID_SIZE // 2, GRID_SIZE // 2)]
-        self.direction = random.choice([UP, DOWN, LEFT, RIGHT])
-        self.food = self.generate_food()
-        self.score = 0
-        self.running = True
+    snake = [(GRID_SIZE // 2, GRID_SIZE // 2)]
+    direction = random.choice([UP, DOWN, LEFT, RIGHT])
+    food = generate_food(snake)
+    score = 0
+    running = True
 
-    def generate_food(self):
-        while True:
-            food = (random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1))
-            if food not in self.snake:
-                return food
+    return screen, snake, direction, food, score, running
 
-    def update(self):
-        if not self.running:
-            return
+def generate_food(snake):
+    while True:
+        food = (random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1))
+        if food not in snake:
+            return food
 
-        new_head = (self.snake[0][0] + self.direction[0], self.snake[0][1] + self.direction[1])
+def update(snake, direction, food, score, running):
+    if not running:
+        return snake, food, score, running
 
-        if (new_head[0] < 0 or new_head[0] >= GRID_SIZE or
-            new_head[1] < 0 or new_head[1] >= GRID_SIZE or
-            new_head in self.snake):
-            self.running = False
-            return
+    new_head = (snake[0][0] + direction[0], snake[0][1] + direction[1])
 
-        self.snake.insert(0, new_head)
+    if (new_head[0] < 0 or new_head[0] >= GRID_SIZE or
+        new_head[1] < 0 or new_head[1] >= GRID_SIZE or
+        new_head in snake):
+        running = False
+        return snake, food, score, running
 
-        if new_head == self.food:
-            self.food = self.generate_food()
-            self.score += 1
+    snake.insert(0, new_head)
+
+    if new_head == food:
+        food = generate_food(snake)
+        score += 1
+    else:
+        snake.pop()
+
+    return snake, food, score, running
+
+def draw(screen, snake, food):
+    screen.fill(BLACK)
+
+    # Dessiner le serpent
+    for i, (x, y) in enumerate(snake):
+        # Changer la couleur de dessin de la tête
+        if i == 0:
+            pygame.draw.rect(screen, WHITE, pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
         else:
-            self.snake.pop()
+            pygame.draw.rect(screen, GREEN, pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
-    def draw(self):
-        self.screen.fill(BLACK)
+    # Dessiner la nourriture
+    fx, fy = food
+    pygame.draw.rect(screen, RED, pygame.Rect(fx * CELL_SIZE, fy * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
-        for x, y in self.snake:
-            pygame.draw.rect(self.screen, GREEN, pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+    pygame.display.flip()
 
-        fx, fy = self.food
-        pygame.draw.rect(self.screen, RED, pygame.Rect(fx * CELL_SIZE, fy * CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
-        pygame.display.flip()
+def get_best_move(snake, food):
+    head_x, head_y = snake[0]
+    fx, fy = food
 
-    def compute_distance_map(self):
-        distance_map = np.full((GRID_SIZE, GRID_SIZE), np.inf)
-        fx, fy = self.food
-        distance_map[fx][fy] = 0
+    # Calcul des distances
+    distances = {
+        UP: abs(head_x - fx) + abs(head_y - 1 - fy),
+        DOWN: abs(head_x - fx) + abs(head_y + 1 - fy),
+        LEFT: abs(head_x - 1 - fx) + abs(head_y - fy),
+        RIGHT: abs(head_x + 1 - fx) + abs(head_y - fy)
+    }
 
-        updated = True
-        while updated:
-            updated = False
-            for x in range(GRID_SIZE):
-                for y in range(GRID_SIZE):
-                    if distance_map[x][y] < np.inf:
-                        for dx, dy in [UP, DOWN, LEFT, RIGHT]:
-                            nx, ny = x + dx, y + dy
-                            if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE:
-                                if distance_map[nx][ny] > distance_map[x][y] + 1:
-                                    distance_map[nx][ny] = distance_map[x][y] + 1
-                                    updated = True
-        return distance_map
+    # Initialisation du meilleur mouvement avec une grande distance
+    best_move = None
+    best_distance = float('inf')
 
-    def get_best_move(self):
-        distance_map = self.compute_distance_map()
-        head_x, head_y = self.snake[0]
-        possible_moves = [UP, DOWN, LEFT, RIGHT]
-        best_move = min(possible_moves, key=lambda move: distance_map[head_x + move[0]][head_y + move[1]]
-                        if 0 <= head_x + move[0] < GRID_SIZE and 0 <= head_y + move[1] < GRID_SIZE else np.inf)
-        return best_move
+    # Vérifie les mouvements possibles et évite de se mordre la queue
+    for direction in [UP, DOWN, LEFT, RIGHT]:
+        new_head = (head_x + direction[0], head_y + direction[1])
+        if (0 <= new_head[0] < GRID_SIZE and 0 <= new_head[1] < GRID_SIZE and new_head not in snake):
+            distance = distances[direction]
+            if distance < best_distance:
+                best_move = direction
+                best_distance = distance
 
-    def ai_move(self):
-        if self.running:
-            self.direction = self.get_best_move()
-            self.update()
+    return best_move
 
-    def run(self):
-        clock = pygame.time.Clock()
-        while self.running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
+def ai_move(snake, direction, food, score, running):
+    if running:
+        new_direction = get_best_move(snake, food)
+        if new_direction:  # Vérifie si un mouvement sûr a été trouvé
+            direction = new_direction
+        snake, food, score, running = update(snake, direction, food, score, running)
+    return snake, direction, food, score, running
 
-            self.ai_move()
-            self.draw()
-            clock.tick(10)  # 10 FPS
+def run():
+    screen, snake, direction, food, score, running = init_game()
+    clock = pygame.time.Clock()
 
-        pygame.quit()
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        snake, direction, food, score, running = ai_move(snake, direction, food, score, running)
+        draw(screen, snake, food)
+        clock.tick(10)  # 10 FPS
+
+    pygame.quit()
 
 if __name__ == "__main__":
-    game = SnakeGame()
-    game.run()
+    run()
